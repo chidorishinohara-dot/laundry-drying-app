@@ -55,7 +55,8 @@ const els = {
 };
 
 function scoreHour(hour) {
-  let score = 48;
+  const vpd = vaporPressureDeficit(hour.temperature, hour.humidity);
+  let score = 36;
   const reasons = [];
 
   if (hour.rainProbability >= 60 || hour.precipitation > 0.6) {
@@ -66,23 +67,26 @@ function scoreHour(hour) {
     reasons.push("可能有雨");
   }
 
-  if (hour.humidity <= 50) {
+  if (vpd >= 1.4) {
+    score += 32;
+    reasons.push("蒸发条件强");
+  } else if (vpd >= 1) {
     score += 24;
-    reasons.push("湿度低");
-  } else if (hour.humidity <= 60) {
-    score += 16;
-  } else if (hour.humidity <= 70) {
-    score += 4;
-  } else if (hour.humidity <= 79) {
-    score -= 18;
-    reasons.push("湿度偏高");
-  } else if (hour.humidity <= 86) {
-    score -= 40;
-    reasons.push("湿度很高");
+    reasons.push("蒸发条件较好");
+  } else if (vpd >= 0.7) {
+    score += 12;
+    reasons.push("蒸发条件一般");
+  } else if (vpd >= 0.45) {
+    score -= 4;
+    reasons.push("蒸发偏慢");
   } else {
-    score -= 55;
-    reasons.push("湿度很高");
+    score -= 26;
+    reasons.push("蒸发很慢");
   }
+
+  if (hour.humidity >= 86) score -= 22;
+  else if (hour.humidity >= 80) score -= 14;
+  else if (hour.humidity >= 72) score -= 6;
 
   if (hour.wind >= 8 && hour.wind <= 25) {
     score += 18;
@@ -94,18 +98,19 @@ function scoreHour(hour) {
     score -= 8;
   }
 
-  if (hour.temperature >= 24) score += 16;
-  else if (hour.temperature >= 16) score += 8;
+  if (hour.temperature >= 24) score += 10;
+  else if (hour.temperature >= 16) score += 6;
   else if (hour.temperature < 10) score -= 14;
 
-  if (hour.cloudCover <= 35) score += 12;
-  else if (hour.cloudCover >= 80) score -= 10;
+  if (hour.cloudCover <= 35) score += 14;
+  else if (hour.cloudCover >= 80) score -= 14;
 
   if (hour.isDay) score += 18;
   else score -= 45;
 
   return {
     ...hour,
+    vpd: Math.round(vpd * 100) / 100,
     score: Math.max(0, Math.min(100, Math.round(score))),
     reasons
   };
@@ -146,12 +151,30 @@ function distanceKm(from, to) {
   return 2 * earthRadiusKm * Math.asin(Math.sqrt(a));
 }
 
+function saturationVaporPressure(tempC) {
+  return 0.6108 * Math.exp((17.27 * tempC) / (tempC + 237.3));
+}
+
+function vaporPressureDeficit(tempC, humidity) {
+  return saturationVaporPressure(tempC) * (1 - humidity / 100);
+}
+
 function average(values) {
   return Math.round(values.reduce((sum, value) => sum + value, 0) / values.length);
 }
 
+function averageFixed(values, digits = 1) {
+  const factor = 10 ** digits;
+  return Math.round((values.reduce((sum, value) => sum + value, 0) / values.length) * factor) / factor;
+}
+
 function isSuitableHour(hour) {
-  return hour.isDay && hour.score >= 50 && hour.rainProbability < 50;
+  return hour.isDay &&
+    hour.score >= 58 &&
+    hour.vpd >= 0.65 &&
+    hour.humidity <= 82 &&
+    hour.rainProbability < 35 &&
+    hour.precipitation <= 0.1;
 }
 
 function makePeriod(hours) {
@@ -164,6 +187,7 @@ function makePeriod(hours) {
     rainMax,
     humidityAvg: average(hours.map((hour) => hour.humidity)),
     windAvg: average(hours.map((hour) => hour.wind)),
+    vpdAvg: averageFixed(hours.map((hour) => hour.vpd), 2),
     durationHours: hours.length,
     hours
   };
@@ -271,7 +295,7 @@ function render() {
   els.windMetric.textContent = `${Math.round(current.wind)} km/h`;
   els.rainMetric.textContent = current.rainProbability == null ? `${current.precipitation ?? 0} mm` : `${current.rainProbability}%`;
   els.tempMetric.textContent = `${Math.round(current.temperature)}℃`;
-  els.currentText.textContent = `${weatherCodeText[current.weatherCode] || "天气变化"}，云量 ${current.cloudCover ?? "--"}%，湿度 ${current.humidity}%。${scoredCurrent.reasons.slice(0, 2).join("，") || "当前条件较稳定"}。`;
+  els.currentText.textContent = `${weatherCodeText[current.weatherCode] || "天气变化"}，湿度 ${current.humidity}%，VPD ${scoredCurrent.vpd} kPa。${scoredCurrent.reasons.slice(0, 2).join("，") || "当前条件较稳定"}。`;
   els.updateText.textContent = `每天首次打开或点击刷新都会读取最新天气。按打开时间更新更适合晾晒决策，因为天气会在一天内变化；只做每日固定一次更新容易错过阵雨和湿度回升。`;
 
   if (nextPeriod) {
@@ -286,7 +310,7 @@ function render() {
         return `
           <div class="window-card">
             <strong>${label}：${formatDay(item.start)} ${formatHour(item.start)}-${formatHour(item.end)} · 约 ${item.durationHours} 小时</strong>
-            <p>${item.average}分，湿度约 ${item.humidityAvg}%，风速约 ${item.windAvg} km/h，最高降雨概率 ${item.rainMax}%。${item.hours[0].reasons.slice(0, 2).join("，") || "整体条件稳定"}。</p>
+            <p>${item.average}分，VPD ${item.vpdAvg} kPa，湿度约 ${item.humidityAvg}%，风速约 ${item.windAvg} km/h，最高降雨概率 ${item.rainMax}%。</p>
           </div>
         `;
       }).join("")
@@ -325,7 +349,8 @@ function render() {
       <div class="hour">
         <time>${formatHour(hour.date)}</time>
         <strong class="${hourAdvice.className}">${hour.score}</strong>
-        <span>${hour.humidity}% · ${hour.rainProbability}%雨</span>
+        <span>${hour.humidity}% 湿度</span>
+        <span>VPD ${hour.vpd} · ${hour.rainProbability}%雨</span>
       </div>
     `;
   }).join("");
