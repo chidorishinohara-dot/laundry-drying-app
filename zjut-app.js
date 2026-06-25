@@ -23,12 +23,7 @@ const weatherCodeText = {
   95: "雷雨"
 };
 
-const state = {
-  current: null,
-  grid: null,
-  hours: [],
-  lastLoadedAt: null
-};
+const state = { current: null, grid: null, hours: [], lastLoadedAt: null };
 
 const els = {
   statusPanel: document.querySelector(".status-panel"),
@@ -59,74 +54,30 @@ function scoreHour(hour) {
   const radiation = hour.radiation ?? 0;
   let score = 24;
   const reasons = [];
-
-  if (hour.rainProbability >= 60 || hour.precipitation > 0.6) {
-    score -= 75;
-    reasons.push("降雨风险高");
-  } else if (hour.rainProbability >= 35 || hour.precipitation > 0.1) {
-    score -= 38;
-    reasons.push("可能有雨");
-  }
-
-  if (vpd >= 1.4) {
-    score += 34;
-    reasons.push("蒸发条件强");
-  } else if (vpd >= 1) {
-    score += 26;
-    reasons.push("蒸发条件较好");
-  } else if (vpd >= 0.7) {
-    score += 14;
-    reasons.push("蒸发条件一般");
-  } else if (vpd >= 0.45) {
-    score -= 4;
-    reasons.push("蒸发偏慢");
-  } else {
-    score -= 26;
-    reasons.push("蒸发很慢");
-  }
-
+  if (hour.rainProbability >= 60 || hour.precipitation > 0.6) { score -= 75; reasons.push("降雨风险高"); }
+  else if (hour.rainProbability >= 35 || hour.precipitation > 0.1) { score -= 38; reasons.push("可能有雨"); }
+  if (vpd >= 1.4) { score += 34; reasons.push("蒸发条件强"); }
+  else if (vpd >= 1) { score += 26; reasons.push("蒸发条件较好"); }
+  else if (vpd >= 0.7) { score += 14; reasons.push("蒸发条件一般"); }
+  else if (vpd >= 0.45) { score -= 4; reasons.push("蒸发偏慢"); }
+  else { score -= 26; reasons.push("蒸发很慢"); }
   if (hour.humidity >= 86) score -= 22;
   else if (hour.humidity >= 80) score -= 14;
   else if (hour.humidity >= 72) score -= 6;
-
-  if (hour.wind >= 8 && hour.wind <= 25) {
-    score += 18;
-    reasons.push("风速合适");
-  } else if (hour.wind > 35) {
-    score -= 22;
-    reasons.push("风太大");
-  } else if (hour.wind < 4) {
-    score -= 8;
-  }
-
-  if (radiation >= 550) {
-    score += 20;
-    reasons.push("日照强");
-  } else if (radiation >= 300) {
-    score += 12;
-    reasons.push("有日照");
-  } else if (radiation >= 120) {
-    score += 5;
-  } else if (hour.isDay) {
-    score -= 8;
-  }
-
+  if (hour.wind >= 8 && hour.wind <= 25) { score += 18; reasons.push("风速合适"); }
+  else if (hour.wind > 35) { score -= 22; reasons.push("风太大"); }
+  else if (hour.wind < 4) score -= 8;
+  if (radiation >= 550) { score += 20; reasons.push("日照强"); }
+  else if (radiation >= 300) { score += 12; reasons.push("有日照"); }
+  else if (radiation >= 120) score += 5;
+  else if (hour.isDay) score -= 8;
   if (hour.temperature >= 24) score += 8;
   else if (hour.temperature >= 16) score += 4;
   else if (hour.temperature < 10) score -= 14;
-
   if (hour.cloudCover >= 85 && radiation < 180) score -= 12;
-
   if (hour.isDay) score += 18;
   else score -= 45;
-
-  return {
-    ...hour,
-    vpd: Math.round(vpd * 100) / 100,
-    radiation,
-    score: Math.max(0, Math.min(100, Math.round(score))),
-    reasons
-  };
+  return { ...hour, vpd: Math.round(vpd * 100) / 100, radiation, score: Math.max(0, Math.min(100, Math.round(score))), reasons };
 }
 
 function getAdvice(score) {
@@ -136,59 +87,27 @@ function getAdvice(score) {
   return { text: "不建议晾晒", className: "bad" };
 }
 
-function formatHour(date) {
-  return new Intl.DateTimeFormat("zh-CN", { hour: "2-digit", minute: "2-digit" }).format(date);
-}
-
-function formatDay(date) {
-  return new Intl.DateTimeFormat("zh-CN", { weekday: "short", month: "numeric", day: "numeric" }).format(date);
-}
-
-function formatDateTime(date) {
-  return new Intl.DateTimeFormat("zh-CN", {
-    month: "numeric",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit"
-  }).format(date);
-}
-
+function formatHour(date) { return new Intl.DateTimeFormat("zh-CN", { hour: "2-digit", minute: "2-digit" }).format(date); }
+function formatDay(date) { return new Intl.DateTimeFormat("zh-CN", { weekday: "short", month: "numeric", day: "numeric" }).format(date); }
+function formatDateTime(date) { return new Intl.DateTimeFormat("zh-CN", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" }).format(date); }
 function distanceKm(from, to) {
   const earthRadiusKm = 6371;
   const toRad = (degree) => degree * Math.PI / 180;
   const dLat = toRad(to.latitude - from.latitude);
   const dLon = toRad(to.longitude - from.longitude);
-  const a = Math.sin(dLat / 2) ** 2 +
-    Math.cos(toRad(from.latitude)) * Math.cos(toRad(to.latitude)) *
-    Math.sin(dLon / 2) ** 2;
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(from.latitude)) * Math.cos(toRad(to.latitude)) * Math.sin(dLon / 2) ** 2;
   return 2 * earthRadiusKm * Math.asin(Math.sqrt(a));
 }
-
-function saturationVaporPressure(tempC) {
-  return 0.6108 * Math.exp((17.27 * tempC) / (tempC + 237.3));
-}
-
-function vaporPressureDeficit(tempC, humidity) {
-  return saturationVaporPressure(tempC) * (1 - humidity / 100);
-}
-
-function average(values) {
-  return Math.round(values.reduce((sum, value) => sum + value, 0) / values.length);
-}
-
+function saturationVaporPressure(tempC) { return 0.6108 * Math.exp((17.27 * tempC) / (tempC + 237.3)); }
+function vaporPressureDeficit(tempC, humidity) { return saturationVaporPressure(tempC) * (1 - humidity / 100); }
+function average(values) { return Math.round(values.reduce((sum, value) => sum + value, 0) / values.length); }
 function averageFixed(values, digits = 1) {
   const factor = 10 ** digits;
   return Math.round((values.reduce((sum, value) => sum + value, 0) / values.length) * factor) / factor;
 }
 
 function isSuitableHour(hour) {
-  return hour.isDay &&
-    hour.score >= 58 &&
-    hour.vpd >= 0.65 &&
-    hour.humidity <= 82 &&
-    (hour.radiation ?? 0) >= 120 &&
-    hour.rainProbability < 35 &&
-    hour.precipitation <= 0.1;
+  return hour.isDay && hour.score >= 58 && hour.vpd >= 0.65 && hour.humidity <= 82 && (hour.radiation ?? 0) >= 120 && hour.rainProbability < 35 && hour.precipitation <= 0.1;
 }
 
 function makePeriod(hours) {
@@ -211,22 +130,12 @@ function makePeriod(hours) {
 function findPeriods(hours, limit = 6) {
   const periods = [];
   let current = [];
-
   for (const hour of hours) {
-    if (isSuitableHour(hour)) {
-      current.push(hour);
-    } else if (current.length) {
-      periods.push(makePeriod(current));
-      current = [];
-    }
+    if (isSuitableHour(hour)) current.push(hour);
+    else if (current.length) { periods.push(makePeriod(current)); current = []; }
   }
-
   if (current.length) periods.push(makePeriod(current));
-
-  return periods
-    .filter((period) => period.durationHours >= 1)
-    .sort((a, b) => a.start - b.start)
-    .slice(0, limit);
+  return periods.filter((period) => period.durationHours >= 1).sort((a, b) => a.start - b.start).slice(0, limit);
 }
 
 function getBestPeriodForDay(dayHours) {
@@ -243,43 +152,25 @@ function groupByDay(hours) {
 }
 
 function getConfidence(nextWindow, current) {
-  if (!nextWindow || !current) {
-    return { label: "低", className: "bad", reason: "缺少当前天气或可用晾晒窗口" };
-  }
-
+  if (!nextWindow || !current) return { label: "低", className: "bad", reason: "缺少当前天气或可用晾晒窗口" };
   const startsSoon = nextWindow.start.getTime() - Date.now() <= 4 * 60 * 60 * 1000;
   const currentRainRisk = current.precipitation > 0.1 || current.rain > 0.1 || current.weatherCode >= 51;
   const humidNow = current.humidity >= 82;
   const windyNow = current.wind > 35;
-
-  if (currentRainRisk || windyNow) {
-    return { label: "低", className: "bad", reason: currentRainRisk ? "当前已有降水迹象" : "当前风速过大" };
-  }
-
+  if (currentRainRisk || windyNow) return { label: "低", className: "bad", reason: currentRainRisk ? "当前已有降水迹象" : "当前风速过大" };
   if (humidNow || nextWindow.rainMax >= 35 || !startsSoon) {
-    return {
-      label: "中",
-      className: "okay",
-      reason: humidNow ? "当前湿度偏高" : nextWindow.rainMax >= 35 ? "窗口期降雨概率偏高" : "适合时段不是马上到来"
-    };
+    return { label: "中", className: "okay", reason: humidNow ? "当前湿度偏高" : nextWindow.rainMax >= 35 ? "窗口期降雨概率偏高" : "适合时段不是马上到来" };
   }
-
   return { label: "高", className: "good", reason: "当前条件和短时预报一致" };
 }
 
 function makeCurrentHour(current, fallbackHour) {
   if (!current) return fallbackHour;
-  return {
-    ...fallbackHour,
-    ...current,
-    rainProbability: fallbackHour.rainProbability ?? 0,
-    precipitation: Math.max(current.precipitation ?? 0, current.rain ?? 0, fallbackHour.precipitation ?? 0)
-  };
+  return { ...fallbackHour, ...current, rainProbability: fallbackHour.rainProbability ?? 0, precipitation: Math.max(current.precipitation ?? 0, current.rain ?? 0, fallbackHour.precipitation ?? 0) };
 }
 
 function render() {
   if (!state.hours.length) return;
-
   const scoredHours = state.hours.map(scoreHour);
   const nowHour = scoredHours[0];
   const currentHour = makeCurrentHour(state.current, nowHour);
@@ -299,9 +190,7 @@ function render() {
   els.statusPanel.classList.add(ringScore >= 78 ? "good-bg" : ringScore >= 50 ? "okay-bg" : "bad-bg");
   els.locationLabel.textContent = `${CAMPUS.latitude}, ${CAMPUS.longitude}`;
   els.updatedAt.textContent = state.current ? `实况 ${formatDateTime(state.current.date)}` : `更新 ${formatDateTime(new Date())}`;
-  els.sourceText.textContent = gridDistance
-    ? `数据源：Open-Meteo 当前估计 + 7 天小时预报，最近网格约 ${gridDistance.toFixed(1)} km`
-    : "数据源：Open-Meteo 当前估计 + 7 天小时预报";
+  els.sourceText.textContent = gridDistance ? `数据源：Open-Meteo 当前估计 + 7 天小时预报，最近网格约 ${gridDistance.toFixed(1)} km` : "数据源：Open-Meteo 当前估计 + 7 天小时预报";
   els.confidenceText.textContent = `可信度：${confidence.label}，${confidence.reason}`;
   els.confidenceText.className = confidence.className;
 
@@ -313,21 +202,13 @@ function render() {
   els.currentText.textContent = `${weatherCodeText[current.weatherCode] || "天气变化"}，湿度 ${current.humidity}%，VPD ${scoredCurrent.vpd} kPa。${scoredCurrent.reasons.slice(0, 2).join("，") || "当前条件较稳定"}。`;
   els.updateText.textContent = `算法使用 VPD（水汽压差）、风速、短波辐射、降雨概率和湿度上限；它判断的是“晾晒条件”，不是保证干透时间。打开或刷新时会读取最新天气。`;
 
-  if (nextPeriod) {
-    els.summaryText.textContent = `现在指数 ${ringScore} 分：${advice.text}。下一个合适时段是 ${formatDay(nextPeriod.start)} ${formatHour(nextPeriod.start)}-${formatHour(nextPeriod.end)}，连续约 ${nextPeriod.durationHours} 小时。`;
-  } else {
-    els.summaryText.textContent = `现在指数 ${ringScore} 分：${advice.text}。未来 7 天没有稳定的白天晾晒窗口，先别安排大件清洗。`;
-  }
+  if (nextPeriod) els.summaryText.textContent = `现在指数 ${ringScore} 分：${advice.text}。下一个合适时段是 ${formatDay(nextPeriod.start)} ${formatHour(nextPeriod.start)}-${formatHour(nextPeriod.end)}，连续约 ${nextPeriod.durationHours} 小时。`;
+  else els.summaryText.textContent = `现在指数 ${ringScore} 分：${advice.text}。未来 7 天没有稳定的白天晾晒窗口，先别安排大件清洗。`;
 
   els.windowList.innerHTML = periods.length
     ? periods.slice(0, 3).map((item, index) => {
         const label = index === 0 ? "下一个" : "备选";
-        return `
-          <div class="window-card">
-            <strong>${label}：${formatDay(item.start)} ${formatHour(item.start)}-${formatHour(item.end)} · 约 ${item.durationHours} 小时</strong>
-            <p>${item.average}分，VPD ${item.vpdAvg} kPa，日照约 ${item.radiationAvg} W/m²，湿度约 ${item.humidityAvg}%，最高降雨概率 ${item.rainMax}%。</p>
-          </div>
-        `;
+        return `<div class="window-card"><strong>${label}：${formatDay(item.start)} ${formatHour(item.start)}-${formatHour(item.end)} · 约 ${item.durationHours} 小时</strong><p>${item.average}分，VPD ${item.vpdAvg} kPa，日照约 ${item.radiationAvg} W/m²，湿度约 ${item.humidityAvg}%，最高降雨概率 ${item.rainMax}%。</p></div>`;
       }).join("")
     : `<p class="muted">未来 7 天暂时没有稳定晾晒时段。</p>`;
 
@@ -340,34 +221,15 @@ function render() {
     const humidityAvg = average(dayHours.map((hour) => hour.humidity));
     const tempMin = Math.round(Math.min(...dayHours.map((hour) => hour.temperature)));
     const tempMax = Math.round(Math.max(...dayHours.map((hour) => hour.temperature)));
-    const periodText = dayPeriods.length
-      ? dayPeriods.map((period) => `${formatHour(period.start)}-${formatHour(period.end)}`).join("，")
-      : "暂无";
-
-    return `
-      <div class="day-card">
-        <div>
-          <strong>${formatDay(dayHours[0].date)}</strong>
-          <span class="${dayAdvice.className}">${dayAdvice.text}</span>
-        </div>
-        <p>${tempMin}-${tempMax}℃ · 湿度 ${humidityAvg}% · 最高 ${rainMax}% 雨</p>
-        <em>合适：${periodText}</em>
-      </div>
-    `;
+    const periodText = dayPeriods.length ? dayPeriods.map((period) => `${formatHour(period.start)}-${formatHour(period.end)}`).join("，") : "暂无";
+    return `<div class="day-card"><div><strong>${formatDay(dayHours[0].date)}</strong><span class="${dayAdvice.className}">${dayAdvice.text}</span></div><p>${tempMin}-${tempMax}℃ · 湿度 ${humidityAvg}% · 最高 ${rainMax}% 雨</p><em>合适：${periodText}</em></div>`;
   });
-
   els.dailyList.innerHTML = dailyItems.join("");
 
   els.hourlyList.innerHTML = scoredHours.slice(0, 24).map((hour) => {
     const hourAdvice = getAdvice(hour.score);
-    return `
-      <div class="hour">
-        <time>${formatHour(hour.date)}</time>
-        <strong class="${hourAdvice.className}">${hour.score}</strong>
-        <span>${hour.humidity}% 湿度</span>
-        <span>VPD ${hour.vpd} · ${hour.radiation} W/m²</span>
-      </div>
-    `;
+    const humidityLevel = Math.max(8, Math.min(100, hour.humidity));
+    return `<div class="hour"><time>${formatHour(hour.date)}</time><strong class="${hourAdvice.className}">${hour.score}</strong><div class="humidity-bar" aria-label="湿度 ${hour.humidity}%"><span style="width: ${humidityLevel}%"></span></div><em>${hour.humidity}%</em></div>`;
   }).join("");
 }
 
@@ -377,34 +239,12 @@ async function fetchWeather() {
   url.searchParams.set("longitude", CAMPUS.longitude);
   url.searchParams.set("timezone", "Asia/Shanghai");
   url.searchParams.set("forecast_days", "7");
-  url.searchParams.set("current", [
-    "temperature_2m",
-    "relative_humidity_2m",
-    "apparent_temperature",
-    "is_day",
-    "precipitation",
-    "rain",
-    "weather_code",
-    "cloud_cover",
-    "wind_speed_10m"
-  ].join(","));
-  url.searchParams.set("hourly", [
-    "temperature_2m",
-    "relative_humidity_2m",
-    "precipitation_probability",
-    "precipitation",
-    "weather_code",
-    "cloud_cover",
-    "shortwave_radiation",
-    "wind_speed_10m",
-    "is_day"
-  ].join(","));
-
+  url.searchParams.set("current", ["temperature_2m", "relative_humidity_2m", "apparent_temperature", "is_day", "precipitation", "rain", "weather_code", "cloud_cover", "wind_speed_10m"].join(","));
+  url.searchParams.set("hourly", ["temperature_2m", "relative_humidity_2m", "precipitation_probability", "precipitation", "weather_code", "cloud_cover", "shortwave_radiation", "wind_speed_10m", "is_day"].join(","));
   const response = await fetch(url);
   if (!response.ok) throw new Error("天气读取失败");
   const data = await response.json();
   const currentTime = Date.now();
-
   const current = data.current ? {
     date: new Date(data.current.time),
     temperature: data.current.temperature_2m,
@@ -417,7 +257,6 @@ async function fetchWeather() {
     wind: data.current.wind_speed_10m,
     isDay: Boolean(data.current.is_day)
   } : null;
-
   const hours = data.hourly.time.map((time, index) => ({
     date: new Date(time),
     temperature: data.hourly.temperature_2m[index],
@@ -431,15 +270,7 @@ async function fetchWeather() {
     wind: data.hourly.wind_speed_10m[index],
     isDay: Boolean(data.hourly.is_day[index])
   })).filter((hour) => hour.date.getTime() >= currentTime - 60 * 60 * 1000);
-
-  return {
-    current,
-    grid: {
-      latitude: data.latitude,
-      longitude: data.longitude
-    },
-    hours
-  };
+  return { current, grid: { latitude: data.latitude, longitude: data.longitude }, hours };
 }
 
 function setLoading() {
@@ -478,7 +309,6 @@ async function load() {
 }
 
 els.refreshButton.addEventListener("click", load);
-
 els.tabs.forEach((button) => {
   button.addEventListener("click", () => {
     const view = button.dataset.view;
@@ -496,16 +326,11 @@ els.tabs.forEach((button) => {
 });
 
 load();
-
 setInterval(load, 60 * 60 * 1000);
-
 document.addEventListener("visibilitychange", () => {
   const stale = !state.lastLoadedAt || Date.now() - state.lastLoadedAt > 30 * 60 * 1000;
   if (document.visibilityState === "visible" && stale) load();
 });
-
 if ("serviceWorker" in navigator) {
-  window.addEventListener("load", () => {
-    navigator.serviceWorker.register("./sw.js").catch(() => {});
-  });
+  window.addEventListener("load", () => { navigator.serviceWorker.register("./sw.js").catch(() => {}); });
 }
