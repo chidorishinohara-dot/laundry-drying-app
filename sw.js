@@ -1,10 +1,10 @@
-const CACHE_NAME = "laundry-drying-app-v8";
+const CACHE_NAME = "laundry-drying-app-v9";
 const APP_SHELL = [
   "./",
   "./index.html",
-  "./styles.css?v=8",
+  "./styles.css?v=9",
   "./app.js",
-  "./zjut-app.js?v=8",
+  "./zjut-app.js?v=9",
   "./manifest.webmanifest",
   "./icon.svg"
 ];
