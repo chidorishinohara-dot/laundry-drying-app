@@ -11,7 +11,7 @@
     <link rel="manifest" href="manifest.webmanifest">
     <link rel="icon" href="icon.svg" type="image/svg+xml">
     <link rel="apple-touch-icon" href="icon.svg">
-    <link rel="stylesheet" href="styles.css?v=8">
+    <link rel="stylesheet" href="styles.css?v=9">
   </head>
   <body>
     <main class="app-shell">
@@ -116,13 +116,13 @@
             <div class="source-strip">
               <span id="sourceText">数据源：Open-Meteo 当前估计 + 7 天小时预报</span>
               <strong id="confidenceText">可信度：计算中</strong>
-              <p id="updateText">打开 App 或点击刷新时会重新读取最新天气；不打开时，iPhone 网页 App 通常不会在后台稳定更新。</p>
+              <p id="updateText">算法使用 VPD（水汽压差）、风速、短波辐射、降雨概率和湿度上限；它判断的是“晾晒条件”，不是保证干透时间。</p>
             </div>
           </article>
         </section>
       </section>
     </main>
 
-    <script src="zjut-app.js?v=8" defer></script>
+    <script src="zjut-app.js?v=9" defer></script>
   </body>
 </html>
