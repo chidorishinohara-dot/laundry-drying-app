@@ -42,10 +42,9 @@
           <strong>浙江工业大学朝晖校区 · 30.292937, 120.165978</strong>
         </div>
 
-        <div class="segmented" role="group" aria-label="衣物类型">
-          <button class="segment active" type="button" data-type="light">薄衣服</button>
-          <button class="segment" type="button" data-type="normal">日常衣物</button>
-          <button class="segment" type="button" data-type="heavy">厚衣物/床品</button>
+        <div class="fixed-place clothing-note">
+          <span>衣物类型</span>
+          <strong>日常衣物</strong>
         </div>
       </section>
 
@@ -63,8 +62,8 @@
         <section class="detail-panel" aria-label="天气细节">
           <div class="tab-list" role="tablist" aria-label="查看内容">
             <button class="tab active" id="tab-current" type="button" role="tab" aria-selected="true" aria-controls="panel-current" data-view="current">现在</button>
-            <button class="tab" id="tab-daily" type="button" role="tab" aria-selected="false" aria-controls="panel-daily" data-view="daily">7 天</button>
             <button class="tab" id="tab-hourly" type="button" role="tab" aria-selected="false" aria-controls="panel-hourly" data-view="hourly">24 小时</button>
+            <button class="tab" id="tab-daily" type="button" role="tab" aria-selected="false" aria-controls="panel-daily" data-view="daily">7 天</button>
             <button class="tab" id="tab-source" type="button" role="tab" aria-selected="false" aria-controls="panel-source" data-view="source">说明</button>
           </div>
 
@@ -94,6 +93,13 @@
             </div>
           </article>
 
+          <article class="panel tab-panel" id="panel-hourly" role="tabpanel" aria-labelledby="tab-hourly" data-panel="hourly" hidden>
+            <div class="panel-title">
+              <h3>未来 24 小时细节</h3>
+            </div>
+            <div id="hourlyList" class="hourly-list" aria-label="逐小时晾晒指数"></div>
+          </article>
+
           <article class="panel tab-panel" id="panel-daily" role="tabpanel" aria-labelledby="tab-daily" data-panel="daily" hidden>
             <div class="panel-title">
               <h3>未来 7 天</h3>
@@ -101,13 +107,6 @@
             <div id="dailyList" class="daily-list">
               <p class="muted">正在读取 7 天预报。</p>
             </div>
-          </article>
-
-          <article class="panel tab-panel" id="panel-hourly" role="tabpanel" aria-labelledby="tab-hourly" data-panel="hourly" hidden>
-            <div class="panel-title">
-              <h3>未来 24 小时细节</h3>
-            </div>
-            <div id="hourlyList" class="hourly-list" aria-label="逐小时晾晒指数"></div>
           </article>
 
           <article class="panel tab-panel" id="panel-source" role="tabpanel" aria-labelledby="tab-source" data-panel="source" hidden>
