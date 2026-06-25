@@ -56,7 +56,8 @@ const els = {
 
 function scoreHour(hour) {
   const vpd = vaporPressureDeficit(hour.temperature, hour.humidity);
-  let score = 36;
+  const radiation = hour.radiation ?? 0;
+  let score = 24;
   const reasons = [];
 
   if (hour.rainProbability >= 60 || hour.precipitation > 0.6) {
@@ -68,13 +69,13 @@ function scoreHour(hour) {
   }
 
   if (vpd >= 1.4) {
-    score += 32;
+    score += 34;
     reasons.push("蒸发条件强");
   } else if (vpd >= 1) {
-    score += 24;
+    score += 26;
     reasons.push("蒸发条件较好");
   } else if (vpd >= 0.7) {
-    score += 12;
+    score += 14;
     reasons.push("蒸发条件一般");
   } else if (vpd >= 0.45) {
     score -= 4;
@@ -98,12 +99,23 @@ function scoreHour(hour) {
     score -= 8;
   }
 
-  if (hour.temperature >= 24) score += 10;
-  else if (hour.temperature >= 16) score += 6;
+  if (radiation >= 550) {
+    score += 20;
+    reasons.push("日照强");
+  } else if (radiation >= 300) {
+    score += 12;
+    reasons.push("有日照");
+  } else if (radiation >= 120) {
+    score += 5;
+  } else if (hour.isDay) {
+    score -= 8;
+  }
+
+  if (hour.temperature >= 24) score += 8;
+  else if (hour.temperature >= 16) score += 4;
   else if (hour.temperature < 10) score -= 14;
 
-  if (hour.cloudCover <= 35) score += 14;
-  else if (hour.cloudCover >= 80) score -= 14;
+  if (hour.cloudCover >= 85 && radiation < 180) score -= 12;
 
   if (hour.isDay) score += 18;
   else score -= 45;
@@ -111,6 +123,7 @@ function scoreHour(hour) {
   return {
     ...hour,
     vpd: Math.round(vpd * 100) / 100,
+    radiation,
     score: Math.max(0, Math.min(100, Math.round(score))),
     reasons
   };
@@ -173,6 +186,7 @@ function isSuitableHour(hour) {
     hour.score >= 58 &&
     hour.vpd >= 0.65 &&
     hour.humidity <= 82 &&
+    (hour.radiation ?? 0) >= 120 &&
     hour.rainProbability < 35 &&
     hour.precipitation <= 0.1;
 }
@@ -188,6 +202,7 @@ function makePeriod(hours) {
     humidityAvg: average(hours.map((hour) => hour.humidity)),
     windAvg: average(hours.map((hour) => hour.wind)),
     vpdAvg: averageFixed(hours.map((hour) => hour.vpd), 2),
+    radiationAvg: average(hours.map((hour) => hour.radiation ?? 0)),
     durationHours: hours.length,
     hours
   };
@@ -269,7 +284,7 @@ function render() {
   const nowHour = scoredHours[0];
   const currentHour = makeCurrentHour(state.current, nowHour);
   const scoredCurrent = scoreHour(currentHour);
-  const periods = findPeriods(scoredHours, 8);
+  const periods = findPeriods(scoredHours, 3);
   const nextPeriod = periods[0];
   const ringScore = scoredCurrent.score;
   const advice = getAdvice(ringScore);
@@ -296,21 +311,21 @@ function render() {
   els.rainMetric.textContent = current.rainProbability == null ? `${current.precipitation ?? 0} mm` : `${current.rainProbability}%`;
   els.tempMetric.textContent = `${Math.round(current.temperature)}℃`;
   els.currentText.textContent = `${weatherCodeText[current.weatherCode] || "天气变化"}，湿度 ${current.humidity}%，VPD ${scoredCurrent.vpd} kPa。${scoredCurrent.reasons.slice(0, 2).join("，") || "当前条件较稳定"}。`;
-  els.updateText.textContent = `每天首次打开或点击刷新都会读取最新天气。按打开时间更新更适合晾晒决策，因为天气会在一天内变化；只做每日固定一次更新容易错过阵雨和湿度回升。`;
+  els.updateText.textContent = `算法使用 VPD（水汽压差）、风速、短波辐射、降雨概率和湿度上限；它判断的是“晾晒条件”，不是保证干透时间。打开或刷新时会读取最新天气。`;
 
   if (nextPeriod) {
-    els.summaryText.textContent = `现在指数 ${ringScore} 分：${advice.text}。下一个合适时段是 ${formatDay(nextPeriod.start)} ${formatHour(nextPeriod.start)}-${formatHour(nextPeriod.end)}，可连续晾约 ${nextPeriod.durationHours} 小时。`;
+    els.summaryText.textContent = `现在指数 ${ringScore} 分：${advice.text}。下一个合适时段是 ${formatDay(nextPeriod.start)} ${formatHour(nextPeriod.start)}-${formatHour(nextPeriod.end)}，连续约 ${nextPeriod.durationHours} 小时。`;
   } else {
     els.summaryText.textContent = `现在指数 ${ringScore} 分：${advice.text}。未来 7 天没有稳定的白天晾晒窗口，先别安排大件清洗。`;
   }
 
   els.windowList.innerHTML = periods.length
-    ? periods.slice(0, 5).map((item, index) => {
+    ? periods.slice(0, 3).map((item, index) => {
         const label = index === 0 ? "下一个" : "备选";
         return `
           <div class="window-card">
             <strong>${label}：${formatDay(item.start)} ${formatHour(item.start)}-${formatHour(item.end)} · 约 ${item.durationHours} 小时</strong>
-            <p>${item.average}分，VPD ${item.vpdAvg} kPa，湿度约 ${item.humidityAvg}%，风速约 ${item.windAvg} km/h，最高降雨概率 ${item.rainMax}%。</p>
+            <p>${item.average}分，VPD ${item.vpdAvg} kPa，日照约 ${item.radiationAvg} W/m²，湿度约 ${item.humidityAvg}%，最高降雨概率 ${item.rainMax}%。</p>
           </div>
         `;
       }).join("")
@@ -350,7 +365,7 @@ function render() {
         <time>${formatHour(hour.date)}</time>
         <strong class="${hourAdvice.className}">${hour.score}</strong>
         <span>${hour.humidity}% 湿度</span>
-        <span>VPD ${hour.vpd} · ${hour.rainProbability}%雨</span>
+        <span>VPD ${hour.vpd} · ${hour.radiation} W/m²</span>
       </div>
     `;
   }).join("");
@@ -380,6 +395,7 @@ async function fetchWeather() {
     "precipitation",
     "weather_code",
     "cloud_cover",
+    "shortwave_radiation",
     "wind_speed_10m",
     "is_day"
   ].join(","));
@@ -411,6 +427,7 @@ async function fetchWeather() {
     weatherCode: data.hourly.weather_code[index],
     weatherText: weatherCodeText[data.hourly.weather_code[index]] || "天气变化",
     cloudCover: data.hourly.cloud_cover[index] ?? 50,
+    radiation: data.hourly.shortwave_radiation[index] ?? 0,
     wind: data.hourly.wind_speed_10m[index],
     isDay: Boolean(data.hourly.is_day[index])
   })).filter((hour) => hour.date.getTime() >= currentTime - 60 * 60 * 1000);
