@@ -1,4 +1,4 @@
-const CACHE_NAME = "laundry-drying-app-v5";
+const CACHE_NAME = "laundry-drying-app-v6";
 const APP_SHELL = [
   "./",
   "./index.html",
