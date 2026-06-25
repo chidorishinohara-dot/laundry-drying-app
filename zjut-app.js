@@ -4,12 +4,6 @@ const CAMPUS = {
   longitude: 120.165978
 };
 
-const clothingProfiles = {
-  light: { label: "薄衣服", neededHours: 2, extraHours: 0 },
-  normal: { label: "日常衣物", neededHours: 3, extraHours: 1 },
-  heavy: { label: "厚衣物/床品", neededHours: 4, extraHours: 2 }
-};
-
 const weatherCodeText = {
   0: "晴",
   1: "大致晴朗",
@@ -30,7 +24,6 @@ const weatherCodeText = {
 };
 
 const state = {
-  clothingType: "light",
   current: null,
   grid: null,
   hours: [],
@@ -40,7 +33,6 @@ const state = {
 const els = {
   statusPanel: document.querySelector(".status-panel"),
   refreshButton: document.querySelector("#refreshButton"),
-  segments: [...document.querySelectorAll(".segment")],
   tabs: [...document.querySelectorAll(".tab")],
   panels: [...document.querySelectorAll(".tab-panel")],
   scoreRing: document.querySelector("#scoreRing"),
@@ -158,41 +150,48 @@ function average(values) {
   return Math.round(values.reduce((sum, value) => sum + value, 0) / values.length);
 }
 
-function findWindows(hours, limit = 6) {
-  const profile = clothingProfiles[state.clothingType];
-  const candidates = [];
+function isSuitableHour(hour) {
+  return hour.isDay && hour.score >= 50 && hour.rainProbability < 50;
+}
 
-  for (let start = 0; start <= hours.length - profile.neededHours; start += 1) {
-    const block = hours.slice(start, start + profile.neededHours);
-    if (block.some((hour) => !hour.isDay)) continue;
+function makePeriod(hours) {
+  const rainMax = Math.max(...hours.map((hour) => hour.rainProbability));
+  return {
+    start: hours[0].date,
+    end: new Date(hours[hours.length - 1].date.getTime() + 60 * 60 * 1000),
+    average: average(hours.map((hour) => hour.score)),
+    lowest: Math.min(...hours.map((hour) => hour.score)),
+    rainMax,
+    humidityAvg: average(hours.map((hour) => hour.humidity)),
+    windAvg: average(hours.map((hour) => hour.wind)),
+    durationHours: hours.length,
+    hours
+  };
+}
 
-    const scores = block.map((hour) => hour.score);
-    const averageScore = average(scores);
-    const lowest = Math.min(...scores);
-    const rainMax = Math.max(...block.map((hour) => hour.rainProbability));
-    const humidityAvg = average(block.map((hour) => hour.humidity));
-    const windAvg = average(block.map((hour) => hour.wind));
+function findPeriods(hours, limit = 6) {
+  const periods = [];
+  let current = [];
 
-    candidates.push({
-      start: block[0].date,
-      end: new Date(block[block.length - 1].date.getTime() + 60 * 60 * 1000),
-      average: averageScore,
-      lowest,
-      rainMax,
-      humidityAvg,
-      windAvg,
-      hours: block
-    });
+  for (const hour of hours) {
+    if (isSuitableHour(hour)) {
+      current.push(hour);
+    } else if (current.length) {
+      periods.push(makePeriod(current));
+      current = [];
+    }
   }
 
-  return candidates
-    .filter((item) => item.lowest >= 50 && item.rainMax < 50)
-    .sort((a, b) => a.start - b.start || b.average - a.average)
+  if (current.length) periods.push(makePeriod(current));
+
+  return periods
+    .filter((period) => period.durationHours >= 1)
+    .sort((a, b) => a.start - b.start)
     .slice(0, limit);
 }
 
-function getBestWindowForDay(dayHours) {
-  return findWindows(dayHours, 24).sort((a, b) => b.average - a.average || a.start - b.start)[0];
+function getBestPeriodForDay(dayHours) {
+  return findPeriods(dayHours, 24).sort((a, b) => b.average - a.average || b.durationHours - a.durationHours || a.start - b.start)[0];
 }
 
 function groupByDay(hours) {
@@ -246,12 +245,11 @@ function render() {
   const nowHour = scoredHours[0];
   const currentHour = makeCurrentHour(state.current, nowHour);
   const scoredCurrent = scoreHour(currentHour);
-  const windows = findWindows(scoredHours, 6);
-  const nextWindow = windows[0];
+  const periods = findPeriods(scoredHours, 8);
+  const nextPeriod = periods[0];
   const ringScore = scoredCurrent.score;
   const advice = getAdvice(ringScore);
-  const profile = clothingProfiles[state.clothingType];
-  const confidence = getConfidence(nextWindow, state.current);
+  const confidence = getConfidence(nextPeriod, state.current);
   const gridDistance = state.grid ? distanceKm(CAMPUS, state.grid) : null;
 
   els.scoreValue.textContent = ringScore;
@@ -276,34 +274,36 @@ function render() {
   els.currentText.textContent = `${weatherCodeText[current.weatherCode] || "天气变化"}，云量 ${current.cloudCover ?? "--"}%，湿度 ${current.humidity}%。${scoredCurrent.reasons.slice(0, 2).join("，") || "当前条件较稳定"}。`;
   els.updateText.textContent = `每天首次打开或点击刷新都会读取最新天气。按打开时间更新更适合晾晒决策，因为天气会在一天内变化；只做每日固定一次更新容易错过阵雨和湿度回升。`;
 
-  if (nextWindow) {
-    const duration = profile.neededHours + profile.extraHours;
-    els.summaryText.textContent = `现在指数 ${ringScore} 分：${advice.text}。下一个更稳时段是 ${formatDay(nextWindow.start)} ${formatHour(nextWindow.start)}-${formatHour(nextWindow.end)}。${profile.label}建议预留 ${duration}-${duration + 1} 小时。`;
+  if (nextPeriod) {
+    els.summaryText.textContent = `现在指数 ${ringScore} 分：${advice.text}。下一个合适时段是 ${formatDay(nextPeriod.start)} ${formatHour(nextPeriod.start)}-${formatHour(nextPeriod.end)}，可连续晾约 ${nextPeriod.durationHours} 小时。`;
   } else {
     els.summaryText.textContent = `现在指数 ${ringScore} 分：${advice.text}。未来 7 天没有稳定的白天晾晒窗口，先别安排大件清洗。`;
   }
 
-  els.windowList.innerHTML = windows.length
-    ? windows.slice(0, 3).map((item, index) => {
+  els.windowList.innerHTML = periods.length
+    ? periods.slice(0, 5).map((item, index) => {
         const label = index === 0 ? "下一个" : "备选";
         return `
           <div class="window-card">
-            <strong>${label}：${formatDay(item.start)} ${formatHour(item.start)}-${formatHour(item.end)} · ${item.average}分</strong>
-            <p>湿度约 ${item.humidityAvg}%，风速约 ${item.windAvg} km/h，最高降雨概率 ${item.rainMax}%。${item.hours[0].reasons.slice(0, 2).join("，") || "整体条件稳定"}。</p>
+            <strong>${label}：${formatDay(item.start)} ${formatHour(item.start)}-${formatHour(item.end)} · 约 ${item.durationHours} 小时</strong>
+            <p>${item.average}分，湿度约 ${item.humidityAvg}%，风速约 ${item.windAvg} km/h，最高降雨概率 ${item.rainMax}%。${item.hours[0].reasons.slice(0, 2).join("，") || "整体条件稳定"}。</p>
           </div>
         `;
       }).join("")
-    : `<p class="muted">未来 7 天暂时没有连续 ${profile.neededHours} 小时以上的稳定晾晒窗口。</p>`;
+    : `<p class="muted">未来 7 天暂时没有稳定晾晒时段。</p>`;
 
   const dailyItems = [...groupByDay(scoredHours).values()].slice(0, 7).map((dayHours) => {
-    const dayWindow = getBestWindowForDay(dayHours);
-    const dayScore = dayWindow ? dayWindow.average : Math.max(...dayHours.map((hour) => hour.score));
+    const dayPeriods = findPeriods(dayHours, 12);
+    const dayPeriod = getBestPeriodForDay(dayHours);
+    const dayScore = dayPeriod ? dayPeriod.average : Math.max(...dayHours.map((hour) => hour.score));
     const dayAdvice = getAdvice(dayScore);
     const rainMax = Math.max(...dayHours.map((hour) => hour.rainProbability));
     const humidityAvg = average(dayHours.map((hour) => hour.humidity));
     const tempMin = Math.round(Math.min(...dayHours.map((hour) => hour.temperature)));
     const tempMax = Math.round(Math.max(...dayHours.map((hour) => hour.temperature)));
-    const bestText = dayWindow ? `${formatHour(dayWindow.start)}-${formatHour(dayWindow.end)}` : "暂无";
+    const periodText = dayPeriods.length
+      ? dayPeriods.map((period) => `${formatHour(period.start)}-${formatHour(period.end)}`).join("，")
+      : "暂无";
 
     return `
       <div class="day-card">
@@ -312,7 +312,7 @@ function render() {
           <span class="${dayAdvice.className}">${dayAdvice.text}</span>
         </div>
         <p>${tempMin}-${tempMax}℃ · 湿度 ${humidityAvg}% · 最高 ${rainMax}% 雨</p>
-        <em>最佳：${bestText}</em>
+        <em>合适：${periodText}</em>
       </div>
     `;
   });
@@ -436,14 +436,6 @@ async function load() {
 }
 
 els.refreshButton.addEventListener("click", load);
-
-els.segments.forEach((button) => {
-  button.addEventListener("click", () => {
-    state.clothingType = button.dataset.type;
-    els.segments.forEach((item) => item.classList.toggle("active", item === button));
-    render();
-  });
-});
 
 els.tabs.forEach((button) => {
   button.addEventListener("click", () => {
