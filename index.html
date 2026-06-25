@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#f6f4ee">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="晒衣助手">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <title>晒衣助手</title>
+    <link rel="manifest" href="manifest.webmanifest">
+    <link rel="icon" href="icon.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="icon.svg">
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="status-panel" aria-live="polite">
+        <div class="topbar">
+          <div>
+            <p class="eyebrow">浙江工业大学朝晖校区</p>
+            <h1>晒衣助手</h1>
+          </div>
+          <button class="icon-button" id="refreshButton" type="button" aria-label="刷新天气">↻</button>
+        </div>
+
+        <div class="recommendation">
+          <div class="score-ring" id="scoreRing">
+            <span id="scoreValue">--</span>
+          </div>
+          <div>
+            <p class="label">当下适合晾晒指数</p>
+            <h2 id="mainAdvice">正在读取天气</h2>
+            <p id="summaryText">我会先判断现在是否适合晾晒，再给出下一个更稳的时间段。</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="controls" aria-label="设置">
+        <div class="fixed-place">
+          <span>固定地点</span>
+          <strong>浙江工业大学朝晖校区 · 30.292937, 120.165978</strong>
+        </div>
+
+        <div class="segmented" role="group" aria-label="衣物类型">
+          <button class="segment active" type="button" data-type="light">薄衣服</button>
+          <button class="segment" type="button" data-type="normal">日常衣物</button>
+          <button class="segment" type="button" data-type="heavy">厚衣物/床品</button>
+        </div>
+      </section>
+
+      <section class="content-grid">
+        <article class="panel">
+          <div class="panel-title">
+            <h3>下一个适合时段</h3>
+            <span id="locationLabel">朝晖校区</span>
+          </div>
+          <div id="windowList" class="window-list">
+            <p class="muted">正在准备建议。</p>
+          </div>
+        </article>
+
+        <section class="detail-panel" aria-label="天气细节">
+          <div class="tab-list" role="tablist" aria-label="查看内容">
+            <button class="tab active" id="tab-current" type="button" role="tab" aria-selected="true" aria-controls="panel-current" data-view="current">现在</button>
+            <button class="tab" id="tab-daily" type="button" role="tab" aria-selected="false" aria-controls="panel-daily" data-view="daily">7 天</button>
+            <button class="tab" id="tab-hourly" type="button" role="tab" aria-selected="false" aria-controls="panel-hourly" data-view="hourly">24 小时</button>
+            <button class="tab" id="tab-source" type="button" role="tab" aria-selected="false" aria-controls="panel-source" data-view="source">说明</button>
+          </div>
+
+          <article class="panel tab-panel active" id="panel-current" role="tabpanel" aria-labelledby="tab-current" data-panel="current">
+            <div class="panel-title">
+              <h3>当前实况估计</h3>
+              <span id="updatedAt">--</span>
+            </div>
+            <p id="currentText" class="panel-note">正在读取当前天气。</p>
+            <div class="metric-grid">
+              <div class="metric metric-humidity">
+                <span>湿度</span>
+                <strong id="humidityMetric">--</strong>
+              </div>
+              <div class="metric metric-wind">
+                <span>风速</span>
+                <strong id="windMetric">--</strong>
+              </div>
+              <div class="metric metric-rain">
+                <span>降雨</span>
+                <strong id="rainMetric">--</strong>
+              </div>
+              <div class="metric metric-temp">
+                <span>温度</span>
+                <strong id="tempMetric">--</strong>
+              </div>
+            </div>
+          </article>
+
+          <article class="panel tab-panel" id="panel-daily" role="tabpanel" aria-labelledby="tab-daily" data-panel="daily" hidden>
+            <div class="panel-title">
+              <h3>未来 7 天</h3>
+            </div>
+            <div id="dailyList" class="daily-list">
+              <p class="muted">正在读取 7 天预报。</p>
+            </div>
+          </article>
+
+          <article class="panel tab-panel" id="panel-hourly" role="tabpanel" aria-labelledby="tab-hourly" data-panel="hourly" hidden>
+            <div class="panel-title">
+              <h3>未来 24 小时细节</h3>
+            </div>
+            <div id="hourlyList" class="hourly-list" aria-label="逐小时晾晒指数"></div>
+          </article>
+
+          <article class="panel tab-panel" id="panel-source" role="tabpanel" aria-labelledby="tab-source" data-panel="source" hidden>
+            <div class="panel-title">
+              <h3>数据与更新</h3>
+            </div>
+            <div class="source-strip">
+              <span id="sourceText">数据源：Open-Meteo 当前估计 + 7 天小时预报</span>
+              <strong id="confidenceText">可信度：计算中</strong>
+              <p id="updateText">打开 App 或点击刷新时会重新读取最新天气；不打开时，iPhone 网页 App 通常不会在后台稳定更新。</p>
+            </div>
+          </article>
+        </section>
+      </section>
+    </main>
+
+    <script src="zjut-app.js" defer></script>
+  </body>
+</html>
