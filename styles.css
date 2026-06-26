@@ -1,19 +1,21 @@
 :root {
   color-scheme: light;
-  --bg: #6c4d36;
-  --ink: rgba(255, 255, 255, 0.94);
-  --muted: rgba(255, 255, 255, 0.68);
-  --panel: rgba(255, 255, 255, 0.16);
-  --line: rgba(255, 255, 255, 0.34);
-  --green: #bff0cf;
-  --amber: #ffd58a;
-  --red: #ffb4a8;
-  --blue: #d7ecff;
-  --soft-green: rgba(169, 236, 195, 0.24);
-  --soft-amber: rgba(255, 211, 138, 0.24);
-  --soft-red: rgba(255, 163, 146, 0.24);
-  --soft-blue: rgba(196, 226, 244, 0.22);
-  --shadow: 0 22px 60px rgba(57, 28, 12, 0.28);
+  --bg: #f7efe4;
+  --ink: rgba(43, 31, 24, 0.94);
+  --muted: rgba(72, 55, 43, 0.68);
+  --panel: rgba(93, 63, 47, 0.18);
+  --panel-strong: rgba(84, 55, 42, 0.22);
+  --line: rgba(255, 255, 255, 0.46);
+  --inner-line: rgba(255, 255, 255, 0.34);
+  --green: #276d52;
+  --amber: #9b6321;
+  --red: #a33d31;
+  --blue: #4c6f82;
+  --soft-green: rgba(207, 239, 218, 0.36);
+  --soft-amber: rgba(255, 225, 176, 0.34);
+  --soft-red: rgba(250, 199, 187, 0.34);
+  --soft-blue: rgba(210, 232, 244, 0.34);
+  --shadow: 0 22px 60px rgba(83, 54, 36, 0.16);
   font-family: "Songti SC", "STSong", "SimSun", "Noto Serif CJK SC", serif;
 }
 
@@ -25,10 +27,9 @@ body {
   margin: 0;
   min-height: 100vh;
   background:
-    radial-gradient(circle at 16% 8%, rgba(255, 204, 170, 0.7), transparent 24%),
-    radial-gradient(circle at 84% 16%, rgba(255, 176, 90, 0.58), transparent 28%),
-    radial-gradient(circle at 70% 78%, rgba(222, 83, 71, 0.5), transparent 30%),
-    linear-gradient(135deg, #6b321b 0%, #a76324 42%, #6f4d1e 100%);
+    linear-gradient(rgba(255, 250, 244, 0.32), rgba(255, 248, 238, 0.22)),
+    url("assets/glass-cover-v1.png") center top / cover fixed,
+    var(--bg);
   color: var(--ink);
   font-family: "Songti SC", "STSong", "SimSun", "Noto Serif CJK SC", serif;
   position: relative;
@@ -38,13 +39,11 @@ body {
 body::before {
   content: "";
   position: fixed;
-  inset: -20%;
+  inset: 0;
   pointer-events: none;
   background:
-    linear-gradient(116deg, transparent 0 24%, rgba(255, 255, 255, 0.16) 25%, transparent 31%),
-    linear-gradient(122deg, transparent 0 48%, rgba(255, 221, 205, 0.18) 49%, transparent 55%),
-    linear-gradient(130deg, transparent 0 62%, rgba(255, 255, 255, 0.14) 63%, transparent 68%);
-  filter: blur(1px);
+    radial-gradient(circle at 50% 18%, rgba(255, 255, 255, 0.42), transparent 36%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.2), rgba(255, 242, 223, 0.14));
 }
 
 button,
@@ -55,7 +54,7 @@ input {
 .app-shell {
   width: min(100%, 760px);
   margin: 0 auto;
-  padding: max(18px, env(safe-area-inset-top)) 14px max(24px, env(safe-area-inset-bottom));
+  padding: max(18px, env(safe-area-inset-top)) 16px max(24px, env(safe-area-inset-bottom));
   position: relative;
   z-index: 1;
 }
@@ -66,8 +65,8 @@ input {
   border: 1px solid var(--line);
   border-radius: 28px;
   box-shadow: var(--shadow);
-  backdrop-filter: blur(24px) saturate(165%);
-  -webkit-backdrop-filter: blur(24px) saturate(165%);
+  backdrop-filter: blur(28px) saturate(170%);
+  -webkit-backdrop-filter: blur(28px) saturate(170%);
 }
 
 .status-panel {
@@ -131,9 +130,10 @@ h3 {
   height: 44px;
   border: 1px solid var(--line);
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.34);
   color: var(--ink);
   font-size: 1.35rem;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.38);
   backdrop-filter: blur(18px);
   -webkit-backdrop-filter: blur(18px);
 }
@@ -160,9 +160,9 @@ h3 {
   position: absolute;
   inset: 9px;
   border-radius: 50%;
-  background: rgba(110, 65, 38, 0.38);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  background: rgba(255, 247, 235, 0.46);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
 }
 
 .score-ring span {
@@ -174,7 +174,7 @@ h3 {
 
 #summaryText {
   margin-bottom: 0;
-  color: rgba(255, 255, 255, 0.82);
+  color: rgba(43, 31, 24, 0.78);
   line-height: 1.55;
 }
 
@@ -183,9 +183,9 @@ h3 {
   gap: 8px;
   margin-top: 12px;
   padding: 10px 12px;
-  border: 1px solid var(--line);
+  border: 1px solid var(--inner-line);
   border-radius: 18px;
-  background: rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.2);
   color: var(--muted);
   font-size: 0.85rem;
   line-height: 1.4;
@@ -211,7 +211,7 @@ input {
   border: 1px solid var(--line);
   border-radius: 8px;
   padding: 0 12px;
-  background: #fbfaf7;
+  background: rgba(255, 255, 255, 0.48);
   color: var(--ink);
 }
 
@@ -242,7 +242,7 @@ input {
   height: 42px;
   border: 1px solid var(--line);
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.24);
   color: var(--muted);
   padding: 0 8px;
   line-height: 1;
@@ -252,10 +252,11 @@ input {
 }
 
 .tab.active {
-  background: rgba(255, 255, 255, 0.34);
-  border-color: rgba(255, 255, 255, 0.55);
-  color: #fff;
+  background: rgba(255, 255, 255, 0.5);
+  border-color: rgba(255, 255, 255, 0.68);
+  color: var(--ink);
   font-weight: 700;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.36);
 }
 
 .tab-panel {
@@ -286,10 +287,10 @@ input {
 }
 
 .window-card {
-  border: 1px solid var(--line);
+  border: 1px solid var(--inner-line);
   border-radius: 22px;
   padding: 12px;
-  background: rgba(255, 255, 255, 0.13);
+  background: var(--panel-strong);
 }
 
 .window-card strong {
@@ -304,10 +305,10 @@ input {
 }
 
 .day-card {
-  border: 1px solid var(--line);
+  border: 1px solid var(--inner-line);
   border-radius: 22px;
   padding: 12px;
-  background: rgba(255, 255, 255, 0.13);
+  background: var(--panel-strong);
 }
 
 .day-card div {
@@ -342,10 +343,10 @@ input {
 
 .metric {
   min-height: 78px;
-  border: 1px solid var(--line);
+  border: 1px solid var(--inner-line);
   border-radius: 22px;
   padding: 12px;
-  background: rgba(255, 255, 255, 0.13);
+  background: var(--panel-strong);
 }
 
 .metric-humidity {
@@ -379,10 +380,10 @@ input {
 
 .hour {
   min-width: 0;
-  border: 1px solid var(--line);
+  border: 1px solid var(--inner-line);
   border-radius: 18px;
   padding: 10px 12px;
-  background: rgba(255, 255, 255, 0.13);
+  background: rgba(82, 53, 40, 0.2);
   display: grid;
   grid-template-columns: 54px 42px 1fr 40px;
   align-items: center;
@@ -405,7 +406,7 @@ input {
 }
 
 .hour em {
-  color: rgba(255, 255, 255, 0.9);
+  color: rgba(43, 31, 24, 0.74);
   font-style: normal;
   text-align: right;
   font-size: 0.86rem;
@@ -415,13 +416,13 @@ input {
   height: 9px;
   overflow: hidden;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.28);
 }
 
 .humidity-bar span {
   height: 100%;
   border-radius: inherit;
-  background: linear-gradient(90deg, rgba(215, 236, 255, 0.82), rgba(255, 213, 138, 0.92));
+  background: linear-gradient(90deg, rgba(114, 154, 177, 0.72), rgba(223, 147, 85, 0.72));
 }
 
 .good {
@@ -437,15 +438,15 @@ input {
 }
 
 .good-bg {
-  background: rgba(169, 236, 195, 0.2);
+  background: rgba(178, 228, 197, 0.2);
 }
 
 .okay-bg {
-  background: rgba(255, 211, 138, 0.2);
+  background: rgba(255, 218, 154, 0.22);
 }
 
 .bad-bg {
-  background: rgba(255, 163, 146, 0.2);
+  background: rgba(248, 176, 160, 0.22);
 }
 
 @media (max-width: 430px) {
