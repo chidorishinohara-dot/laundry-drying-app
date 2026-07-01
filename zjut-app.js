@@ -57,82 +57,55 @@ const els = {
 function scoreHour(hour) {
   const vpd = vaporPressureDeficit(hour.temperature, hour.humidity);
   const radiation = hour.radiation ?? 0;
-  let score = 24;
   const reasons = [];
+  const vpdScore = smoothstep(0.35, 1.6, vpd);
+  const radiationScore = hour.isDay ? smoothstep(80, 720, radiation) : 0;
+  const windScore = smoothstep(2, 16, Math.min(hour.wind, 28));
+  const tempScore = smoothstep(12, 30, hour.temperature);
+  const rainRisk = Math.max(
+    smoothstep(20, 70, hour.rainProbability),
+    smoothstep(0.05, 0.8, hour.precipitation)
+  );
+  const humidityDrag = smoothstep(78, 96, hour.humidity);
+  const highWindDrag = smoothstep(28, 45, hour.wind);
+  const nightFactor = hour.isDay ? 1 : 0.24;
+  const rainFactor = clamp(1 - rainRisk * 0.9, 0.04, 1);
+  const humidityFactor = clamp(1 - humidityDrag * 0.58, 0.32, 1);
+  const windFactor = clamp(1 - highWindDrag * 0.38, 0.62, 1);
+  const basePotential = 0.4 * vpdScore + 0.26 * radiationScore + 0.2 * windScore + 0.14 * tempScore;
+  const dryingRate = basePotential * rainFactor * humidityFactor * windFactor * nightFactor;
+  const score = Math.round(clamp(dryingRate * 100, 0, 100));
 
-  if (hour.rainProbability >= 60 || hour.precipitation > 0.6) {
-    score -= 75;
-    reasons.push("降雨风险高");
-  } else if (hour.rainProbability >= 35 || hour.precipitation > 0.1) {
-    score -= 38;
-    reasons.push("可能有雨");
-  }
+  if (rainRisk >= 0.65) reasons.push("降雨会中断晾晒");
+  else if (rainRisk >= 0.28) reasons.push("有降雨风险");
 
-  if (vpd >= 1.4) {
-    score += 34;
-    reasons.push("蒸发条件强");
-  } else if (vpd >= 1) {
-    score += 26;
-    reasons.push("蒸发条件较好");
-  } else if (vpd >= 0.7) {
-    score += 14;
-    reasons.push("蒸发条件一般");
-  } else if (vpd >= 0.45) {
-    score -= 4;
-    reasons.push("蒸发偏慢");
-  } else {
-    score -= 26;
-    reasons.push("蒸发很慢");
-  }
+  if (vpd < 0.45) reasons.push("空气接近饱和");
+  else if (vpd >= 1.2) reasons.push("蒸发拉力强");
+  else if (vpd >= 0.75) reasons.push("蒸发拉力尚可");
 
-  if (hour.humidity >= 86) score -= 22;
-  else if (hour.humidity >= 80) score -= 14;
-  else if (hour.humidity >= 72) score -= 6;
+  if (radiationScore >= 0.65) reasons.push("日照明显");
+  else if (hour.isDay && radiationScore < 0.22) reasons.push("日照弱");
 
-  if (hour.wind >= 8 && hour.wind <= 25) {
-    score += 18;
-    reasons.push("风速合适");
-  } else if (hour.wind > 35) {
-    score -= 22;
-    reasons.push("风太大");
-  } else if (hour.wind < 4) {
-    score -= 8;
-  }
+  if (hour.wind < 4) reasons.push("风弱");
+  else if (hour.wind <= 24) reasons.push("通风可用");
+  else reasons.push("风偏大");
 
-  if (radiation >= 550) {
-    score += 20;
-    reasons.push("日照强");
-  } else if (radiation >= 300) {
-    score += 12;
-    reasons.push("有日照");
-  } else if (radiation >= 120) {
-    score += 5;
-  } else if (hour.isDay) {
-    score -= 8;
-  }
-
-  if (hour.temperature >= 24) score += 8;
-  else if (hour.temperature >= 16) score += 4;
-  else if (hour.temperature < 10) score -= 14;
-
-  if (hour.cloudCover >= 85 && radiation < 180) score -= 12;
-
-  if (hour.isDay) score += 18;
-  else score -= 45;
+  if (hour.humidity >= 88) reasons.push("湿度很高");
 
   return {
     ...hour,
     vpd: Math.round(vpd * 100) / 100,
     radiation,
-    score: Math.max(0, Math.min(100, Math.round(score))),
+    dryingRate: Math.round(dryingRate * 100) / 100,
+    score,
     reasons
   };
 }
 
 function getAdvice(score) {
-  if (score >= 78) return { text: "很适合晾晒", className: "good" };
-  if (score >= 64) return { text: "可以晾晒", className: "okay" };
-  if (score >= 50) return { text: "只适合短时晾晒", className: "okay" };
+  if (score >= 72) return { text: "很适合晾晒", className: "good" };
+  if (score >= 56) return { text: "可以晾晒", className: "okay" };
+  if (score >= 38) return { text: "干得慢，只适合少量", className: "okay" };
   return { text: "不建议晾晒", className: "bad" };
 }
 
@@ -172,6 +145,15 @@ function vaporPressureDeficit(tempC, humidity) {
   return saturationVaporPressure(tempC) * (1 - humidity / 100);
 }
 
+function clamp(value, min, max) {
+  return Math.max(min, Math.min(max, value));
+}
+
+function smoothstep(edge0, edge1, value) {
+  const x = clamp((value - edge0) / (edge1 - edge0), 0, 1);
+  return x * x * (3 - 2 * x);
+}
+
 function average(values) {
   return Math.round(values.reduce((sum, value) => sum + value, 0) / values.length);
 }
@@ -181,14 +163,17 @@ function averageFixed(values, digits = 1) {
   return Math.round((values.reduce((sum, value) => sum + value, 0) / values.length) * factor) / factor;
 }
 
+function sumFixed(values, digits = 1) {
+  const factor = 10 ** digits;
+  return Math.round(values.reduce((sum, value) => sum + value, 0) * factor) / factor;
+}
+
 function isSuitableHour(hour) {
   return hour.isDay &&
-    hour.score >= 58 &&
-    hour.vpd >= 0.65 &&
-    hour.humidity <= 82 &&
-    (hour.radiation ?? 0) >= 120 &&
-    hour.rainProbability < 35 &&
-    hour.precipitation <= 0.1;
+    hour.dryingRate >= 0.38 &&
+    hour.score >= 38 &&
+    hour.rainProbability < 45 &&
+    hour.precipitation <= 0.15;
 }
 
 function makePeriod(hours) {
@@ -203,6 +188,7 @@ function makePeriod(hours) {
     windAvg: average(hours.map((hour) => hour.wind)),
     vpdAvg: averageFixed(hours.map((hour) => hour.vpd), 2),
     radiationAvg: average(hours.map((hour) => hour.radiation ?? 0)),
+    dryingTotal: sumFixed(hours.map((hour) => hour.dryingRate), 1),
     durationHours: hours.length,
     hours
   };
@@ -224,9 +210,17 @@ function findPeriods(hours, limit = 6) {
   if (current.length) periods.push(makePeriod(current));
 
   return periods
-    .filter((period) => period.durationHours >= 1)
+    .filter((period) => period.durationHours >= 1 && period.dryingTotal >= 0.45)
     .sort((a, b) => a.start - b.start)
     .slice(0, limit);
+}
+
+function getPeriodDryingText(period) {
+  if (!period) return "没有可用晾晒窗口";
+  if (period.dryingTotal >= 3.2) return "日常衣物大概率能晒干";
+  if (period.dryingTotal >= 2) return "薄衣物可晒干，厚衣偏慢";
+  if (period.dryingTotal >= 1.2) return "适合补晒或少量薄衣";
+  return "时间偏短，更像补晒窗口";
 }
 
 function getBestPeriodForDay(dayHours) {
@@ -290,13 +284,14 @@ function render() {
   const advice = getAdvice(ringScore);
   const confidence = getConfidence(nextPeriod, state.current);
   const gridDistance = state.grid ? distanceKm(CAMPUS, state.grid) : null;
+  const nextDryingText = getPeriodDryingText(nextPeriod);
 
   els.scoreValue.textContent = ringScore;
-  els.scoreRing.style.background = `conic-gradient(${ringScore >= 78 ? "#227a4f" : ringScore >= 50 ? "#a66800" : "#b83a2e"} ${ringScore * 3.6}deg, #ece7dc 0deg)`;
+  els.scoreRing.style.background = `conic-gradient(${ringScore >= 72 ? "#227a4f" : ringScore >= 38 ? "#a66800" : "#b83a2e"} ${ringScore * 3.6}deg, #ece7dc 0deg)`;
   els.mainAdvice.textContent = advice.text;
   els.mainAdvice.className = advice.className;
   els.statusPanel.classList.remove("good-bg", "okay-bg", "bad-bg");
-  els.statusPanel.classList.add(ringScore >= 78 ? "good-bg" : ringScore >= 50 ? "okay-bg" : "bad-bg");
+  els.statusPanel.classList.add(ringScore >= 72 ? "good-bg" : ringScore >= 38 ? "okay-bg" : "bad-bg");
   els.locationLabel.textContent = `${CAMPUS.latitude}, ${CAMPUS.longitude}`;
   els.updatedAt.textContent = state.current ? `实况 ${formatDateTime(state.current.date)}` : `更新 ${formatDateTime(new Date())}`;
   els.sourceText.textContent = gridDistance
@@ -310,11 +305,11 @@ function render() {
   els.windMetric.textContent = `${Math.round(current.wind)} km/h`;
   els.rainMetric.textContent = current.rainProbability == null ? `${current.precipitation ?? 0} mm` : `${current.rainProbability}%`;
   els.tempMetric.textContent = `${Math.round(current.temperature)}℃`;
-  els.currentText.textContent = `${weatherCodeText[current.weatherCode] || "天气变化"}，湿度 ${current.humidity}%，VPD ${scoredCurrent.vpd} kPa。${scoredCurrent.reasons.slice(0, 2).join("，") || "当前条件较稳定"}。`;
-  els.updateText.textContent = `算法使用 VPD（水汽压差）、风速、短波辐射、降雨概率和湿度上限；它判断的是“晾晒条件”，不是保证干透时间。打开或刷新时会读取最新天气。`;
+  els.currentText.textContent = `${weatherCodeText[current.weatherCode] || "天气变化"}，湿度 ${current.humidity}%，VPD ${scoredCurrent.vpd} kPa，干燥强度 ${scoredCurrent.dryingRate.toFixed(2)}。${scoredCurrent.reasons.slice(0, 3).join("，") || "当前条件较稳定"}。`;
+  els.updateText.textContent = `算法改为连续干燥模型：先估算每小时干燥强度，再看一段时间累计是否足够日常衣物；降雨会直接压低可信度。打开或刷新时会读取最新天气。`;
 
   if (nextPeriod) {
-    els.summaryText.textContent = `现在指数 ${ringScore} 分：${advice.text}。下一个合适时段是 ${formatDay(nextPeriod.start)} ${formatHour(nextPeriod.start)}-${formatHour(nextPeriod.end)}，连续约 ${nextPeriod.durationHours} 小时。`;
+    els.summaryText.textContent = `现在指数 ${ringScore} 分：${advice.text}。下一个窗口是 ${formatDay(nextPeriod.start)} ${formatHour(nextPeriod.start)}-${formatHour(nextPeriod.end)}，${nextDryingText}。`;
   } else {
     els.summaryText.textContent = `现在指数 ${ringScore} 分：${advice.text}。未来 7 天没有稳定的白天晾晒窗口，先别安排大件清洗。`;
   }
@@ -325,7 +320,7 @@ function render() {
         return `
           <div class="window-card">
             <strong>${label}：${formatDay(item.start)} ${formatHour(item.start)}-${formatHour(item.end)} · 约 ${item.durationHours} 小时</strong>
-            <p>${item.average}分，VPD ${item.vpdAvg} kPa，日照约 ${item.radiationAvg} W/m²，湿度约 ${item.humidityAvg}%，最高降雨概率 ${item.rainMax}%。</p>
+            <p>${item.average}分，累计干燥 ${item.dryingTotal.toFixed(1)}，${getPeriodDryingText(item)}。VPD ${item.vpdAvg} kPa，湿度约 ${item.humidityAvg}%，最高降雨概率 ${item.rainMax}%。</p>
           </div>
         `;
       }).join("")
@@ -343,6 +338,7 @@ function render() {
     const periodText = dayPeriods.length
       ? dayPeriods.map((period) => `${formatHour(period.start)}-${formatHour(period.end)}`).join("，")
       : "暂无";
+    const dryingText = dayPeriod ? getPeriodDryingText(dayPeriod) : "不适合安排清洗";
 
     return `
       <div class="day-card">
@@ -351,7 +347,7 @@ function render() {
           <span class="${dayAdvice.className}">${dayAdvice.text}</span>
         </div>
         <p>${tempMin}-${tempMax}℃ · 湿度 ${humidityAvg}% · 最高 ${rainMax}% 雨</p>
-        <em>合适：${periodText}</em>
+        <em>${dryingText} · 合适：${periodText}</em>
       </div>
     `;
   });
