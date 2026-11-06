@@ -11,7 +11,7 @@
     <link rel="manifest" href="manifest.webmanifest">
     <link rel="icon" href="icon.svg" type="image/svg+xml">
     <link rel="apple-touch-icon" href="icon.svg">
-    <link rel="stylesheet" href="styles.css?v=16">
+    <link rel="stylesheet" href="styles.css?v=17">
   </head>
   <body>
     <main class="app-shell">
@@ -29,11 +29,12 @@
             <span id="scoreValue">--</span>
           </div>
           <div>
-            <p class="label">当下适合晾晒指数</p>
+            <p class="label">当下干燥条件 · 参考指数</p>
             <h2 id="mainAdvice">正在读取天气</h2>
-            <p id="summaryText">我会先判断现在是否适合晾晒，再给出下一个更稳的时间段。</p>
+            <p id="summaryText">正在核对天气和可晾时段。</p>
           </div>
         </div>
+        <div id="conditions" class="conditions"></div>
       </section>
 
       <section class="content-grid">
@@ -103,14 +104,21 @@
             </div>
             <div class="source-strip">
               <span id="sourceText">数据源：Open-Meteo 当前估计 + 7 天小时预报</span>
-              <strong id="confidenceText">可信度：计算中</strong>
-              <p id="updateText">算法使用 VPD（水汽压差）、风速、短波辐射、降雨概率和湿度上限；它判断的是“晾晒条件”，不是保证干透时间。</p>
+              <strong id="confidenceText">数据读取中</strong>
+              <p>按室外、已脱水的日常衣物参考。遮雨阳台、背阴处和室内与网格天气不同；空气污染和花粉未纳入判断。</p>
+              <p>干燥参考采用 FAO-56 的参考草地蒸散量 ET₀，综合温度、湿度、风和辐射。它不是衣物失水量，不能直接换算干透时间。</p>
+              <p>分数 = 100 × (1 − exp(−每小时 ET₀ / 0.2))，只方便比较天气。可晾时段暂取 ET₀ ≥ 0.10 mm/h、降雨概率低于 40%、降水低于 0.1 mm/h、风速低于 30 km/h、阵风低于 40 km/h，排除雷雨、雨雪及冰点以下；这些是未校准的产品筛选值，不是晾晒科学标准。</p>
+              <p>分数不因降雨、昼夜开关再次打折；降雨和大风会单独阻止露天晾晒推荐。远期时段请临近再确认。</p>
+              <p>打开时获取最新预报；前台每小时刷新，返回页面超过 30 分钟也会刷新。网页关闭时不会在 iPhone 后台定时更新。</p>
+              <p class="source-links"><a href="https://open-meteo.com/en/docs" target="_blank" rel="noopener">Open-Meteo 数据</a> · <a href="https://www.fao.org/4/x0490e/x0490e06.htm" target="_blank" rel="noopener">FAO-56</a> · <a href="https://journals.sagepub.com/doi/full/10.1177/1558925019873482" target="_blank" rel="noopener">织物干燥实验</a> · <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a></p>
             </div>
           </article>
         </section>
       </section>
     </main>
 
-    <script src="zjut-app.js?v=16" defer></script>
+    <script src="drying-model.js?v=17" defer></script>
+    <script src="app.js?v=17" defer></script>
+    <script src="zjut-app.js?v=17" defer></script>
   </body>
 </html>

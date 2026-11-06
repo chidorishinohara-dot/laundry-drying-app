@@ -1,10 +1,11 @@
-const CACHE_NAME = "laundry-drying-app-v16";
+const CACHE_NAME = "laundry-drying-app-v17";
 const APP_SHELL = [
   "./",
   "./index.html",
-  "./styles.css?v=16",
-  "./app.js",
-  "./zjut-app.js?v=16",
+  "./styles.css?v=17",
+  "./app.js?v=17",
+  "./drying-model.js?v=17",
+  "./zjut-app.js?v=17",
   "./manifest.webmanifest",
   "./icon.svg"
 ];
@@ -17,7 +18,7 @@ self.addEventListener("install", (event) => {
 self.addEventListener("activate", (event) => {
   event.waitUntil(
     caches.keys().then((keys) =>
-      Promise.all(keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key)))
+      Promise.all(keys.filter((key) => key.startsWith("laundry-drying-app-") && key !== CACHE_NAME).map((key) => caches.delete(key)))
     )
   );
   self.clients.claim();
@@ -26,17 +27,19 @@ self.addEventListener("activate", (event) => {
 self.addEventListener("fetch", (event) => {
   const requestUrl = new URL(event.request.url);
 
-  if (requestUrl.origin !== self.location.origin) return;
+  if (event.request.method !== "GET" || requestUrl.origin !== self.location.origin || !requestUrl.pathname.startsWith(new URL(self.registration.scope).pathname)) return;
 
   event.respondWith(
     fetch(event.request).then((response) => {
-      const copy = response.clone();
-      caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
+      if (response.ok) {
+        const copy = response.clone();
+        event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy)));
+      }
       return response;
     }).catch(() =>
       caches.match(event.request).then((cached) => {
         if (cached) return cached;
-        return caches.match("./index.html");
+        return event.request.mode === "navigate" ? caches.match("./index.html") : Response.error();
       })
     )
   );
