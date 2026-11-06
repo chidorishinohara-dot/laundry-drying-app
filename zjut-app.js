@@ -11,6 +11,8 @@ const formatHour = (date) => format(date, { hour: "2-digit", minute: "2-digit", 
 const formatDay = (date) => format(date, { weekday: "short", month: "numeric", day: "numeric" });
 const formatDateTime = (date) => format(date, { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
 const periodTime = (period) => `${formatHour(period.start)}-${M.dayKey(period.end) !== M.dayKey(period.start) ? "次日 " : ""}${formatHour(period.end)}`;
+const periodDuration = (period) => period.durationHours < 1
+  ? `${Math.max(1, Math.ceil(period.durationHours * 60))} 分钟` : `${number(period.durationHours, 1)} 小时`;
 
 function distanceKm(from, to) {
   if (![to?.latitude, to?.longitude].every(Number.isFinite)) return null;
@@ -70,7 +72,7 @@ function render() {
   els.windowList.innerHTML = periods.length ? periods.map((period, index) => `
     <div class="window-card">
       <strong>${index === 0 ? "下一个" : "备选"}：${formatDay(period.start)} ${periodTime(period)}</strong>
-      <p>可晾约 ${number(period.durationHours, 1)} 小时 · 条件参考 ${period.average} 分<br>湿度约 ${period.humidityAvg}% · 最高降雨概率 ${period.rainMax}%${period.start - now > 48 * M.HOUR ? "<br>远期预报，临近再确认" : ""}</p>
+      <p>可晾约 ${periodDuration(period)} · 条件参考 ${period.average} 分<br>湿度约 ${period.humidityAvg}% · 最高降雨概率 ${period.rainMax}%${period.start - now > 48 * M.HOUR ? "<br>远期预报，临近再确认" : ""}</p>
     </div>`).join("") : '<p class="muted">未来 7 天未找到符合当前筛选条件的时段，不代表完全不能晾干。</p>';
 
   els.dailyList.innerHTML = [...M.groupByDay(hours).values()].slice(0, 7).map((dayHours) => {
@@ -103,6 +105,7 @@ function clearReadings() {
 
 function setError(error) {
   state.weather = null;
+  state.lastLoadedAt = null;
   clearReadings();
   els.mainAdvice.textContent = "暂时无法生成建议";
   els.mainAdvice.className = "bad";
