@@ -15,7 +15,7 @@
       timezone: "Asia/Shanghai", timeformat: "unixtime", forecast_days: "8",
       wind_speed_unit: "kmh", precipitation_unit: "mm", temperature_unit: "celsius",
       current: "temperature_2m,relative_humidity_2m,precipitation,weather_code,wind_speed_10m,wind_gusts_10m",
-      hourly: "temperature_2m,relative_humidity_2m,precipitation_probability,precipitation,weather_code,wind_speed_10m,wind_gusts_10m,et0_fao_evapotranspiration"
+      hourly: "temperature_2m,relative_humidity_2m,precipitation_probability,precipitation,weather_code,wind_speed_10m,wind_gusts_10m"
     }).toString();
     return url;
   }
@@ -24,7 +24,7 @@
     const source = data.hourly;
     const units = data.hourly_units;
     if (!Array.isArray(source?.time) || units?.time !== "unixtime" ||
-        units.et0_fao_evapotranspiration !== "mm" || units.wind_speed_10m !== "km/h" ||
+        units.wind_speed_10m !== "km/h" ||
         units.precipitation !== "mm" || units.temperature_2m !== "°C" ||
         units.relative_humidity_2m !== "%" || units.precipitation_probability !== "%" ||
         units.wind_gusts_10m !== "km/h") throw new Error("天气数据格式或单位不完整");
@@ -43,8 +43,7 @@
         gust: valueAt(source, "wind_gusts_10m", i),
         weatherCode: maximum(valueAt(source, "weather_code", i - 1), valueAt(source, "weather_code", i)),
         rainProbability: valueAt(source, "precipitation_probability", i),
-        precipitation: valueAt(source, "precipitation", i),
-        et0: valueAt(source, "et0_fao_evapotranspiration", i)
+        precipitation: valueAt(source, "precipitation", i)
       });
     }
     if (!hours.length) throw new Error("没有有效的未来小时预报");

@@ -24,7 +24,7 @@ function distanceKm(from, to) {
 
 function currentAssessment(hour, current, now) {
   if (!hour || !current || Math.abs(now - current.date.getTime()) > 90 * 60000) return hour;
-  // The score remains an hourly forecast proxy; current rain/wind can veto advice.
+  // Use current grid temperature/RH for the active hour; preserve forecast hazard signals.
   const maximum = (a, b) => Number.isFinite(a) && Number.isFinite(b) ? Math.max(a, b) : null;
   return M.assessHour({ ...hour, temperature: current.temperature, humidity: current.humidity,
     wind: maximum(hour.wind, current.wind), gust: maximum(hour.gust, current.gust),
@@ -46,45 +46,46 @@ function render() {
   const score = assessed?.score;
   els.scoreValue.textContent = score ?? "--";
   els.scoreRing.style.background = `conic-gradient(var(--${advice.className === "good" ? "green" : advice.className === "bad" ? "red" : "amber"}) ${(score ?? 0) * 3.6}deg, rgba(255,255,255,.15) 0deg)`;
-  els.mainAdvice.textContent = freshCurrent || !assessed ? advice.text : "仅有小时预报，现场天气待确认";
+  els.mainAdvice.textContent = freshCurrent || !assessed ? advice.text : `小时预报：${advice.text}`;
   els.mainAdvice.className = advice.className;
   els.summaryText.textContent = assessed?.score == null
     ? "缺少本小时干燥参考数据，不生成分数。"
-    : `本小时 ${formatHour(assessed.date)}-${formatHour(assessed.end)} 的天气参考，不代表干透概率。${assessed.suitable ? "能否干透，还取决于脱水程度、衣物间距和实际通风。" : "可先等条件改善，再安排室外晾晒。"}`;
-  const rainText = assessed?.blockers.filter((item) => /雨|水|雷/.test(item)).join("、") ||
-    (M.finite(assessed?.rainProbability, 0, 100) && M.finite(assessed?.precipitation, 0, 500) ? `本小时降雨概率 ${assessed.rainProbability}%` : "降雨数据不足");
+    : `按有顶棚、通风的阳台估计。${assessed.suitable ? "衣物挂开些；这里的时长是可晾时段，不是干透倒计时。" : assessed.blockers.length ? "先等天气缓和再安排晾晒。" : assessed.missing.length ? "关键数据不全，暂不推荐时段。" : "空气带走水分的能力偏弱，可以等更干爽的时段。"}`;
+  const rainText = assessed?.blockers.find((item) => /雷暴|冻雨/.test(item)) ||
+    (assessed?.rainWatch ? "可能飘雨，挂在吹不到雨的内侧" :
+      M.finite(assessed?.rainProbability, 0, 100) && M.finite(assessed?.precipitation, 0, 500) ? `室外降雨概率 ${assessed.rainProbability}%` : "降雨数据不足");
   els.conditions.innerHTML = `
-    <div><span>干燥动力</span><strong>${score == null ? "待判断" : score >= 71 ? "较强" : score >= 39 ? "中等" : "偏弱"}</strong></div>
-    <div><span>淋雨风险</span><strong>${rainText}</strong></div>
+    <div><span>空气干燥力</span><strong>${score == null ? "待判断" : assessed.vpd >= M.POLICY.goodVpd ? "较强" : assessed.vpd >= M.POLICY.minimumVpd ? "中等" : "偏弱"}</strong></div>
+    <div><span>飘雨提醒</span><strong>${rainText}</strong></div>
     <div><span>干透判断</span><strong>尚未实测校准，不估计小时数</strong></div>`;
   if (assessed?.missing.length) els.summaryText.textContent += ` 缺少：${assessed.missing.join("、")}。`;
   els.locationLabel.textContent = "未来三个 · 北京时间";
   els.updatedAt.textContent = freshCurrent ? `当前估计 ${formatDateTime(freshCurrent.date)}` : "当前数据缺失或过时";
   const dist = distanceKm(WeatherProvider.CAMPUS, grid);
   els.sourceText.textContent = `Open-Meteo 网格预报，不是校内气象站观测${dist == null ? "" : `；返回网格中心约距校区 ${dist.toFixed(1)} km`}。`;
-  els.confidenceText.textContent = `v17 · ${formatDateTime(new Date(state.lastLoadedAt))} 获取；未经校区衣物实测校准。`;
+  els.confidenceText.textContent = `v18 · ${formatDateTime(new Date(state.lastLoadedAt))} 获取；非阳台现场测量。`;
   els.humidityMetric.textContent = `${number(freshCurrent?.humidity)}%`;
   els.windMetric.textContent = `${number(freshCurrent?.wind)} km/h`;
   els.rainMetric.textContent = `${number(freshCurrent?.precipitation, 2)} mm`;
   els.tempMetric.textContent = `${number(freshCurrent?.temperature, 1)}℃`;
-  els.currentText.textContent = `本小时参考蒸散量 ${number(assessed?.et0, 2)} mm，空气水汽压差 ${number(assessed?.vpd, 2)} kPa。湿度不能单独决定干燥快慢；日照和通风也有影响。${freshCurrent?.humidity >= 85 ? "当前空气偏湿，背阴或通风不良处可能更慢。" : ""}`;
+  els.currentText.textContent = `网格温湿度推算的水汽压差为 ${number(assessed?.vpd, 2)} kPa。这个值越小，空气越接近饱和。预报风速来自室外 10 米高度，不是衣架旁的风速。`;
 
   els.windowList.innerHTML = periods.length ? periods.map((period, index) => `
     <div class="window-card">
       <strong>${index === 0 ? "下一个" : "备选"}：${formatDay(period.start)} ${periodTime(period)}</strong>
-      <p>可晾约 ${periodDuration(period)} · 条件参考 ${period.average} 分<br>湿度约 ${period.humidityAvg}% · 最高降雨概率 ${period.rainMax}%${period.start - now > 48 * M.HOUR ? "<br>远期预报，临近再确认" : ""}</p>
+      <p>可晾约 ${periodDuration(period)} · 条件参考 ${period.average} 分<br>湿度约 ${period.humidityAvg}% · 室外最高降雨概率 ${period.rainMax}%${period.rainWatch ? "<br>有飘雨可能，宜挂内侧" : ""}${period.start - now > 48 * M.HOUR ? "<br>远期预报，临近再确认" : ""}</p>
     </div>`).join("") : '<p class="muted">未来 7 天未找到符合当前筛选条件的时段，不代表完全不能晾干。</p>';
 
   els.dailyList.innerHTML = [...M.groupByDay(hours).values()].slice(0, 7).map((dayHours) => {
     const dayPeriods = M.findPeriods(dayHours, Infinity, now);
-    const best = [...dayPeriods].sort((a, b) => b.et0Total - a.et0Total || a.start - b.start)[0];
+    const best = [...dayPeriods].sort((a, b) => b.deficitHours - a.deficitHours || a.start - b.start)[0];
     const validTemps = dayHours.map((hour) => hour.temperature).filter((value) => M.finite(value, -60, 60));
     const incomplete = dayHours.some((hour) => hour.missing.length);
     const temps = validTemps.length ? `${number(Math.min(...validTemps))}-${number(Math.max(...validTemps))}℃` : "温度数据不足";
     return `<div class="day-card"><div><strong>${formatDay(dayHours[0].date)}</strong><span class="${best ? "good" : "okay"}">${best ? "有可晾时段" : incomplete ? "数据不足，暂不判断" : "暂无推荐时段"}</span></div>
       <p>${temps}${incomplete ? " · 部分数据缺失" : ""}${dayHours[0].date - now > 48 * M.HOUR ? " · 远期参考" : ""}</p>
       <em>${dayPeriods.length ? dayPeriods.map(periodTime).join("，") : "没有找到低风险且干燥动力足够的连续时段"}</em>
-      ${best ? `<p>优先 ${periodTime(best)} · 不保证在此期间干透</p>` : ""}</div>`;
+      ${best ? `<p>优先 ${periodTime(best)} · ${best.rainWatch ? "留意飘雨，宜挂内侧" : "不保证在此期间干透"}</p>` : ""}</div>`;
   }).join("");
 
   els.hourlyList.innerHTML = hours.slice(0, 24).map((hour) => {
